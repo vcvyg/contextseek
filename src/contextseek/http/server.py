@@ -99,6 +99,13 @@ class EvidenceChainRequest(BaseModel):
     max_depth: int = 10
 
 
+class LinkGraphRequest(BaseModel):
+    scope: str
+    item_id: str
+    max_depth: int = Field(default=3, ge=0, le=10)
+    max_nodes: int = Field(default=100, ge=1, le=500)
+
+
 class ChainConfidenceRequest(BaseModel):
     scope: str
     item_id: str
@@ -1198,6 +1205,21 @@ def create_app(client: ContextSeek | None = None) -> FastAPI:
         )
         chain = ctx.evidence_chain(ref, scope=req.scope, max_depth=req.max_depth)
         return chain.to_dict()
+
+    @app.post("/link_graph")
+    async def link_graph_item(req: LinkGraphRequest) -> dict[str, Any]:
+        ref = (
+            req.item_id
+            if req.item_id.startswith(ctx.resolver.scheme)
+            else ctx.resolver.ref_for(req.scope, req.item_id)
+        )
+        graph = ctx.link_graph(
+            ref,
+            scope=req.scope,
+            max_depth=req.max_depth,
+            max_nodes=req.max_nodes,
+        )
+        return graph.to_dict()
 
     @app.post("/chain_confidence")
     async def chain_confidence_item(req: ChainConfidenceRequest) -> dict[str, Any]:

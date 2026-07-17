@@ -13,7 +13,7 @@ import { useI18n } from "@/lib/i18n";
 import { useScope } from "@/context/ScopeContext";
 import { useNav } from "@/context/NavContext";
 import { useAsyncFn } from "@/lib/utils";
-import type { EvidenceChain, UpstreamResponse } from "@/lib/types";
+import type { EvidenceChain, LinkGraph, UpstreamResponse } from "@/lib/types";
 import { EvidenceDetails } from "./components/EvidenceDetails";
 import { EvidenceGraph } from "./components/EvidenceGraph";
 import { ItemCard } from "./components/ItemCard";
@@ -26,12 +26,14 @@ export function ProvenancePanel({ initialItemId = "" }: { initialItemId?: string
   const [maxDepth, setMaxDepth] = useState(10);
 
   const chain = useAsyncFn<EvidenceChain>(ctx.evidenceChain);
+  const graph = useAsyncFn<LinkGraph>(ctx.linkGraph);
   const upstream = useAsyncFn<UpstreamResponse>(ctx.upstream);
 
   const inspect = () => {
     const id = itemId.trim();
     if (!id) return;
     chain.run({ scope, item_id: id, max_depth: maxDepth });
+    graph.run({ scope, item_id: id, max_depth: maxDepth, max_nodes: 100 });
     upstream.run({ scope, item_id: id });
   };
 
@@ -40,6 +42,7 @@ export function ProvenancePanel({ initialItemId = "" }: { initialItemId?: string
     if (initialItemId) {
       setItemId(initialItemId);
       chain.run({ scope, item_id: initialItemId, max_depth: maxDepth });
+      graph.run({ scope, item_id: initialItemId, max_depth: maxDepth, max_nodes: 100 });
       upstream.run({ scope, item_id: initialItemId });
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -74,19 +77,30 @@ export function ProvenancePanel({ initialItemId = "" }: { initialItemId?: string
               id="pv-depth"
               type="number"
               min={1}
+              max={10}
               value={maxDepth}
-              onChange={(e) => setMaxDepth(Number(e.target.value) || 1)}
+              onChange={(e) =>
+                setMaxDepth(Math.min(10, Math.max(1, Number(e.target.value) || 1)))
+              }
               className="w-24"
             />
           </div>
-          <AsyncButton loading={chain.loading} onClick={inspect} disabled={!itemId.trim()}>
+          <AsyncButton
+            loading={chain.loading || graph.loading}
+            onClick={inspect}
+            disabled={!itemId.trim()}
+          >
             <GitGraph className="h-4 w-4" /> {t("provenance.analyze")}
           </AsyncButton>
         </CardContent>
       </Card>
 
-      <EmptyState loading={chain.loading} error={chain.error} empty={!chain.data}>
-        {chain.data && (
+      <EmptyState
+        loading={chain.loading || graph.loading}
+        error={chain.error || graph.error}
+        empty={!chain.data || !graph.data}
+      >
+        {chain.data && graph.data && (
           <Tabs defaultValue="graph">
             <TabsList>
               <TabsTrigger value="graph">{t("provenance.tabGraph")}</TabsTrigger>
@@ -97,7 +111,7 @@ export function ProvenancePanel({ initialItemId = "" }: { initialItemId?: string
               </TabsTrigger>
             </TabsList>
             <TabsContent value="graph">
-              <EvidenceGraph chain={chain.data} />
+              <EvidenceGraph graph={graph.data} />
             </TabsContent>
             <TabsContent value="details">
               <EvidenceDetails chain={chain.data} />

@@ -151,6 +151,55 @@ def test_http_retrieve_forwards_include_expired_and_returns_meta() -> None:
     assert body["items"][0]["content"] is None
 
 
+def test_http_link_graph_forwards_bounds_and_returns_graph() -> None:
+    ctx = MagicMock(name="ContextSeek")
+    ctx.resolver.scheme = "contextseek://"
+    ctx.resolver.ref_for.return_value = "contextseek://tenant/project/root"
+    graph = MagicMock()
+    graph.to_dict.return_value = {
+        "root_item_id": "root",
+        "nodes": [{"item_id": "root"}],
+        "edges": [],
+        "max_depth": 2,
+        "max_nodes": 25,
+        "truncated": False,
+    }
+    ctx.link_graph.return_value = graph
+    app = create_app(client=ctx)
+
+    res = _asgi_post(
+        app,
+        "/link_graph",
+        json={
+            "scope": "tenant/project",
+            "item_id": "root",
+            "max_depth": 2,
+            "max_nodes": 25,
+        },
+    )
+
+    assert res.status_code == 200
+    ctx.link_graph.assert_called_once_with(
+        "contextseek://tenant/project/root",
+        scope="tenant/project",
+        max_depth=2,
+        max_nodes=25,
+    )
+    assert res.json()["root_item_id"] == "root"
+
+
+def test_http_link_graph_rejects_invalid_node_limit() -> None:
+    app = create_app(client=MagicMock(name="ContextSeek"))
+
+    res = _asgi_post(
+        app,
+        "/link_graph",
+        json={"scope": "tenant/project", "item_id": "root", "max_nodes": 0},
+    )
+
+    assert res.status_code == 422
+
+
 def test_http_scopes_lists_sqlite_scopes(tmp_path) -> None:
     from seekvfs import VFS
 

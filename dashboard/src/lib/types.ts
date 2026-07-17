@@ -291,6 +291,32 @@ export interface EvidenceChain {
   needs_reverification: boolean;
 }
 
+export interface LinkGraphNode {
+  item_id: string;
+  stage: Stage;
+  confidence: number;
+  depth: number;
+  is_root: boolean;
+  is_missing: boolean;
+  content_preview: string;
+}
+
+export interface LinkGraphEdge {
+  source_id: string;
+  target_id: string;
+  relation: LinkType;
+  strength: number;
+}
+
+export interface LinkGraph {
+  root_item_id: string;
+  nodes: LinkGraphNode[];
+  edges: LinkGraphEdge[];
+  max_depth: number;
+  max_nodes: number;
+  truncated: boolean;
+}
+
 export interface GlobalOverview {
   total_items: number;
   health_score: number;
@@ -448,6 +474,13 @@ export interface EvidenceChainRequest {
   scope: string;
   item_id: string;
   max_depth?: number;
+}
+
+export interface LinkGraphRequest {
+  scope: string;
+  item_id: string;
+  max_depth?: number;
+  max_nodes?: number;
 }
 
 export interface ItemsRequest {

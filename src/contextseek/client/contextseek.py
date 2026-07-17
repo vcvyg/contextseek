@@ -1059,6 +1059,44 @@ class ContextSeek:
 
         return result
 
+    def link_graph(
+        self,
+        ref: str,
+        *,
+        scope: str,
+        max_depth: int = 3,
+        max_nodes: int = 100,
+    ):
+        """Return a bounded graph of every link type around an item.
+
+        Incoming and outgoing relations are traversed so the selected item can
+        reveal both its sources and items derived from it. Edge direction is
+        preserved in the result.
+        """
+        from contextseek.domain.link_graph import build_link_graph
+
+        payload = self.adapter.read(ref)
+        if payload is None:
+            raise ValueError(f"item not found: {ref}")
+        root_item = deserialize_context_item(payload)
+        result = build_link_graph(
+            root_item,
+            self._load_scope_items(scope=scope),
+            max_depth=max_depth,
+            max_nodes=max_nodes,
+        )
+        self._emit_audit(
+            action="link_graph",
+            scope=scope,
+            detail={
+                "ref": ref,
+                "nodes": len(result.nodes),
+                "edges": len(result.edges),
+                "truncated": result.truncated,
+            },
+        )
+        return result
+
     def chain_confidence(self, ref: str, *, scope: str) -> float:
         """Quick propagated confidence lookup for an item.
 

@@ -157,6 +157,12 @@ const zh: Dict = {
   "evidence.criticalPath": "关键路径",
   "evidence.conflicts": "冲突",
   "evidence.noNodes": "该条目没有证据链节点",
+  "evidence.graphTruncated": "图谱较大，仅显示前 {count} 个节点。可降低深度以查看更聚焦的关系。",
+  "evidence.graphSummary": "{nodes} 个节点 · {edges} 条关系",
+  "evidence.selectNode": "点击节点查看内容摘要",
+  "evidence.nodeDetails": "节点详情",
+  "evidence.confidence": "置信度",
+  "evidence.missingNode": "目标条目缺失",
 
   // overview
   "overview.kpi.total": "总条目",
@@ -520,6 +526,12 @@ const en: Dict = {
   "evidence.criticalPath": "Critical path",
   "evidence.conflicts": "Conflicts",
   "evidence.noNodes": "This item has no evidence-chain nodes",
+  "evidence.graphTruncated": "Large graph: showing the first {count} nodes. Reduce depth for a more focused view.",
+  "evidence.graphSummary": "{nodes} nodes · {edges} relations",
+  "evidence.selectNode": "Select a node to inspect its content preview",
+  "evidence.nodeDetails": "Node details",
+  "evidence.confidence": "Confidence",
+  "evidence.missingNode": "Target item is missing",
 
   "overview.kpi.total": "Total items",
   "overview.kpi.health": "Health score",
@@ -878,6 +890,12 @@ const ja: Dict = {
   "evidence.criticalPath": "クリティカルパス",
   "evidence.conflicts": "競合",
   "evidence.noNodes": "この項目には証拠チェーンノードがありません",
+  "evidence.graphTruncated": "大きなグラフのため、先頭 {count} ノードのみ表示しています。深さを下げると関係を絞り込めます。",
+  "evidence.graphSummary": "{nodes} ノード · {edges} 関係",
+  "evidence.selectNode": "ノードを選択して内容の概要を確認",
+  "evidence.nodeDetails": "ノード詳細",
+  "evidence.confidence": "信頼度",
+  "evidence.missingNode": "対象項目が見つかりません",
 
   "overview.kpi.total": "総項目数",
   "overview.kpi.health": "ヘルススコア",

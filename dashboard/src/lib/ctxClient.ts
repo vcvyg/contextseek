@@ -23,6 +23,8 @@ import type {
   EnvVaultUpsertRequest,
   EvidenceChain,
   EvidenceChainRequest,
+  LinkGraph,
+  LinkGraphRequest,
   ExpandRequest,
   ExpandResponse,
   FeedbackRequest,
@@ -152,6 +154,7 @@ export const ctx = {
   dream: (req: DreamRequest) => post<DreamResponse>("/dream", req),
   upstream: (req: UpstreamRequest) => post<UpstreamResponse>("/upstream", req),
   evidenceChain: (req: EvidenceChainRequest) => post<EvidenceChain>("/evidence_chain", req),
+  linkGraph: (req: LinkGraphRequest) => post<LinkGraph>("/link_graph", req),
   items: (req: ItemsRequest) => post<ItemsResponse>("/items", req),
   overview: (scope: string) => get<Overview>("/overview", { scope }),
   globalOverview: (scope?: string) =>

@@ -28,6 +28,12 @@ from contextseek.domain.invalidation import (
     propagate_invalidation,
 )
 from contextseek.domain.links import Link, LinkType
+from contextseek.domain.link_graph import (
+    LinkGraph,
+    LinkGraphEdge,
+    LinkGraphNode,
+    build_link_graph,
+)
 from contextseek.domain.provenance import Provenance, SourceType
 from contextseek.domain.results import (
     CompactReport,
@@ -62,6 +68,9 @@ __all__ = [
     "EvidenceChain",
     "InvalidationResult",
     "Link",
+    "LinkGraph",
+    "LinkGraphEdge",
+    "LinkGraphNode",
     "LinkType",
     "Provenance",
     "ResponseMeta",
@@ -76,6 +85,7 @@ __all__ = [
     "WriteConflict",
     "default_tool_specs",
     "build_provenance",
+    "build_link_graph",
     "compute_chain_confidence",
     "compute_evidence_chain",
     "deserialize_context_item",
