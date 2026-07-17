@@ -85,6 +85,8 @@ def _iter_files(root: pathlib.Path) -> list[pathlib.Path]:
 @dataclass
 class SyncReport:
     added: int = 0
+    updated: int = 0
+    deleted: int = 0
     skipped: int = 0
     format_detected: str = "unknown"
     errors: list[str] = field(default_factory=list)
@@ -98,12 +100,14 @@ class SyncReport:
 def detect_format(path: str | pathlib.Path) -> str:
     """Detect the source format from path structure and file content.
 
-    Returns one of: auto_dir, markdown_file, code_file, chatgpt_json,
+    Returns one of: obsidian_vault, auto_dir, markdown_file, code_file, chatgpt_json,
     claude_json, bookmarks_html, plaintext.
     """
     p = pathlib.Path(path).expanduser()
 
     if p.is_dir():
+        if (p / ".obsidian").is_dir():
+            return "obsidian_vault"
         return "auto_dir"
 
     if p.is_file():
@@ -529,6 +533,25 @@ def sync_path(
     p = pathlib.Path(path).expanduser()
     fmt = detect_format(p)
     report = SyncReport(format_detected=fmt)
+
+    if fmt == "obsidian_vault":
+        from contextseek.plugs.obsidian import ObsidianVaultPlug
+
+        plug = ObsidianVaultPlug(
+            p,
+            sync_key=scope,
+            persist_state=not dry_run,
+            on_progress=on_progress,
+        )
+        if dry_run:
+            list(plug.stream())
+        else:
+            ctx.plug(plug, scope=scope)
+        report.added = plug.stats.added
+        report.updated = plug.stats.updated
+        report.deleted = plug.stats.deleted
+        report.skipped = plug.stats.skipped
+        return report
 
     sync_backend = _resolve_seekdb_backend(ctx)
     if sync_backend is not None:

@@ -25,7 +25,7 @@ if TYPE_CHECKING:
     from contextseek.scope import ScopeStats, ScopeTree
 
 from contextseek.storage.protocol import SeekVFSAdapter
-from contextseek.plugs.core.protocols import DataPlug, PlugMeta
+from contextseek.plugs.core.protocols import DataPlug, PlugMeta, RawEvent
 from contextseek.domain.context_item import ContextItem
 from contextseek.domain.conflicts import ConflictType
 from contextseek.domain.inference import (
@@ -436,9 +436,11 @@ class ContextSeek:
         """Register and consume a DataPlug.
 
         The plug's ``stream()`` iterator is consumed immediately, adding
-        each RawEvent as a ContextItem. Scope is taken from the explicit
-        ``scope`` argument first, then ``event.metadata["scope"]``, then the
-        plug name as a local fallback. ``event.source`` remains provenance.
+        each RawEvent as a ContextItem. Incremental events with a stable
+        ``item_id`` are updated in place, while delete events are soft-deleted.
+        Scope is taken from the explicit ``scope`` argument first, then
+        ``event.metadata["scope"]``, then the plug name as a local fallback.
+        ``event.source`` remains provenance.
 
         Args:
             source: A DataPlug implementation to register.
@@ -452,6 +454,29 @@ class ContextSeek:
         for event in source.stream():
             event_scope = scope or str(event.metadata.get("scope") or meta.name)
             source_id = event.source or meta.name
+            operation = getattr(event, "operation", "add")
+            item_id = getattr(event, "item_id", None)
+            links = list(getattr(event, "links", []))
+
+            if operation not in {"add", "update", "delete", "noop"}:
+                raise ValueError(f"unsupported plug operation: {operation}")
+            if operation == "noop":
+                continue
+            if operation == "update" and not item_id:
+                raise ValueError("incremental plug update events require item_id")
+            if operation == "delete":
+                if not item_id:
+                    raise ValueError("incremental plug delete events require item_id")
+                ref = self.resolver.ref_for(event_scope, item_id)
+                existing = self._read_item(ref)
+                if existing is not None and not existing.is_deleted:
+                    existing.soft_delete(f"plug_delete:{meta.name}:{source_id}")
+                    self._write_item_with_audit(
+                        existing,
+                        action="plug_delete",
+                        detail={"source": source_id},
+                    )
+                continue
 
             # Allow importers/plugs to override stage/stability (e.g. skill import)
             event_stage: Stage | None = None
@@ -467,15 +492,26 @@ class ContextSeek:
                 except ValueError:
                     pass
 
-            item = self.add(
-                content=event.content,
-                scope=event_scope,
-                source=source_id,
-                source_type=source_type,
-                tags=event.tags,
-                stage=event_stage,
-                stability=event_stability,
-            )
+            if item_id:
+                item = self._upsert_raw_event(
+                    event,
+                    scope=event_scope,
+                    source=source_id,
+                    source_type=source_type,
+                    stage=event_stage,
+                    stability=event_stability,
+                )
+            else:
+                item = self.add(
+                    content=event.content,
+                    scope=event_scope,
+                    source=source_id,
+                    source_type=source_type,
+                    tags=event.tags,
+                    stage=event_stage,
+                    stability=event_stability,
+                    links=links,
+                )
             if "embedding" in event.metadata and self.embedder is None:
                 item.embedding = event.metadata["embedding"]
             if "importance" in event.metadata:
@@ -486,6 +522,63 @@ class ContextSeek:
                 key in event.metadata for key in ("embedding", "importance", "summary")
             ):
                 self._write_item(item)
+
+    def _upsert_raw_event(
+        self,
+        event: RawEvent,
+        *,
+        scope: str,
+        source: str,
+        source_type: str,
+        stage: Stage | None,
+        stability: Stability | None,
+    ) -> ContextItem:
+        """Materialize an incremental RawEvent at its stable item identity."""
+        item_id = getattr(event, "item_id", None)
+        if item_id is None:
+            raise ValueError("incremental plug events require item_id")
+
+        content = self._apply_write_policy(
+            event.content,
+            scope=scope,
+            source=source,
+            source_type=source_type,
+        )
+        resolved_stage, resolved_stability = self._resolve_stage_stability(
+            stage=stage,
+            stability=stability,
+            content=content,
+            source_type=source_type,
+        )
+        ref = self.resolver.ref_for(scope, item_id)
+        existing = self._read_item(ref)
+        item = ContextItem(
+            id=item_id,
+            content=content,
+            scope=scope,
+            provenance=self._build_provenance(source, source_type, None),
+            tags=list(event.tags or []),
+            stage=resolved_stage,
+            stability=resolved_stability,
+            links=list(getattr(event, "links", [])),
+        )
+        action = "plug_add"
+        if existing is not None:
+            action = "plug_update"
+            item.created_at = existing.created_at
+            item.updated_at = datetime.now(timezone.utc)
+            item.relevance_boost = existing.relevance_boost
+            item.access_count = existing.access_count
+            item.lineage_access_count = existing.lineage_access_count
+            item.last_accessed_at = existing.last_accessed_at
+
+        self._prepare_item(item, check_conflicts=False)
+        self._write_item_with_audit(
+            item,
+            action=action,
+            detail={"source": source},
+        )
+        return item
 
     def add(
         self,

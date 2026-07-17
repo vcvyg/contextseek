@@ -1151,6 +1151,7 @@ def run_cli(
         _p = _pl.Path(args.path).expanduser()
         fmt = detect_format(_p)
         format_label = {
+            "obsidian_vault": "Obsidian vault",
             "auto_dir": "auto-detected directory",
             "markdown_file": "Markdown/text file",
             "code_file": "code file",
@@ -1181,11 +1182,14 @@ def run_cli(
 
         if args.dry_run:
             print_success(
-                f"dry-run: would import {report.added} items "
-                f"({report.skipped} already exist)"
+                f"dry-run: would add {report.added}, update {report.updated}, "
+                f"delete {report.deleted} items ({report.skipped} unchanged)"
             )
         else:
-            print_success(f"done: added {report.added}  skipped {report.skipped}")
+            print_success(
+                f"done: added {report.added}  updated {report.updated}  "
+                f"deleted {report.deleted}  skipped {report.skipped}"
+            )
         return 0
 
     return 1

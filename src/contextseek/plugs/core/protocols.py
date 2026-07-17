@@ -14,6 +14,8 @@ from dataclasses import dataclass, field
 from datetime import datetime, timezone
 from typing import Any, Iterator, Literal, Protocol, runtime_checkable
 
+from contextseek.domain.links import Link
+
 
 PlugOperation = Literal["add", "update", "delete", "noop"]
 MaterializationStatus = Literal["applied", "skipped", "failed"]
@@ -65,6 +67,15 @@ class RawEvent:
 
     metadata: dict = field(default_factory=dict)
     """Extra key-value pairs the plug can supply (passed to provenance context)."""
+
+    operation: PlugOperation = "add"
+    """Requested materialization operation for incremental plugs."""
+
+    item_id: str | None = None
+    """Stable ContextItem identity used by incremental plugs for upserts/deletes."""
+
+    links: list[Link] = field(default_factory=list)
+    """Typed relationships to attach to the resulting ContextItem."""
 
 
 @runtime_checkable
