@@ -53,7 +53,7 @@ All active routes run in parallel; their candidate sets are merged before rerank
 
 ## Reranking
 
-After recall, candidates are scored and ranked. Two modes:
+After recall, candidates are scored and ranked. Three modes:
 
 ### Heuristic reranker (default)
 
@@ -78,6 +78,26 @@ Set `RETRIEVAL_RERANKER_MODE=llm` to pass the top `RETRIEVAL_LLM_RERANK_TOP_N` c
 RETRIEVAL_RERANKER_MODE=llm
 RETRIEVAL_LLM_RERANK_TOP_N=20
 ```
+
+### Cross-encoder reranker
+
+Install the optional model dependency and select the local cross-encoder path:
+
+```bash
+pip install "contextseek[rerank]"
+```
+
+```env
+RETRIEVAL_RERANKER_MODE=cross_encoder
+RETRIEVAL_CROSS_ENCODER_MODEL=cross-encoder/ms-marco-MiniLM-L-6-v2
+RETRIEVAL_CROSS_ENCODER_TOP_N=20
+```
+
+The model scores all selected query/document pairs in one batch. Loading is
+lazy, so heuristic and LLM configurations do not import Sentence Transformers.
+Set `RETRIEVAL_CROSS_ENCODER_DEVICE=cpu` or `cuda` to override automatic device
+selection. See the [reranker benchmark](reranker-benchmark.md) for a reproducible
+quality/latency comparison.
 
 ---
 

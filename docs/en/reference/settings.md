@@ -86,8 +86,11 @@ When `SUMMARIZER_PROVIDER=llm` but no LLM is configured, the summarizer is skipp
 | `RETRIEVAL_LINK_BOOST` | `0.10` | Score bonus for items with supporting links |
 | `RETRIEVAL_LINK_REFUTE_PENALTY` | `0.40` | Score penalty for items with refuting links |
 | `RETRIEVAL_LINK_SUPERSEDE_PENALTY` | `0.35` | Score penalty for superseded items |
-| `RETRIEVAL_RERANKER_MODE` | `heuristic` | `heuristic` or `llm` |
+| `RETRIEVAL_RERANKER_MODE` | `heuristic` | `heuristic`, `llm`, or `cross_encoder` |
 | `RETRIEVAL_LLM_RERANK_TOP_N` | `20` | Candidate count passed to LLM reranker |
+| `RETRIEVAL_CROSS_ENCODER_MODEL` | `cross-encoder/ms-marco-MiniLM-L-6-v2` | Sentence Transformers cross-encoder model |
+| `RETRIEVAL_CROSS_ENCODER_DEVICE` | _(auto)_ | Model device, for example `cpu` or `cuda` |
+| `RETRIEVAL_CROSS_ENCODER_TOP_N` | `20` | Candidate count passed to the cross-encoder |
 
 ## Evolution (`EVOLUTION_*`)
 

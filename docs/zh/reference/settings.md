@@ -86,8 +86,11 @@ Provider 的 API Key（`OPENAI_API_KEY`、`DASHSCOPE_API_KEY` 等）由 LangChai
 | `RETRIEVAL_LINK_BOOST` | `0.10` | 有支持链接的条目的得分加成 |
 | `RETRIEVAL_LINK_REFUTE_PENALTY` | `0.40` | 有反驳链接的条目的得分惩罚 |
 | `RETRIEVAL_LINK_SUPERSEDE_PENALTY` | `0.35` | 已被替代条目的得分惩罚 |
-| `RETRIEVAL_RERANKER_MODE` | `heuristic` | `heuristic` 或 `llm` |
+| `RETRIEVAL_RERANKER_MODE` | `heuristic` | `heuristic`、`llm` 或 `cross_encoder` |
 | `RETRIEVAL_LLM_RERANK_TOP_N` | `20` | 传给 LLM 重排器的候选数量 |
+| `RETRIEVAL_CROSS_ENCODER_MODEL` | `cross-encoder/ms-marco-MiniLM-L-6-v2` | Sentence Transformers cross-encoder 模型 |
+| `RETRIEVAL_CROSS_ENCODER_DEVICE` | _(自动)_ | 模型设备，例如 `cpu` 或 `cuda` |
+| `RETRIEVAL_CROSS_ENCODER_TOP_N` | `20` | 传给 cross-encoder 的候选数量 |
 
 ## 演化（`EVOLUTION_*`）
 

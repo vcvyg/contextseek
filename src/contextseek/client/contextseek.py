@@ -387,6 +387,9 @@ class ContextSeek:
     llm: Any | None = None
     """Optional shared LLM for advanced ranking/evolution/classification hooks."""
 
+    reranker: Any | None = None
+    """Optional retrieval reranker implementing the Reranker protocol."""
+
     llm_prompts: LLMPromptTemplates = field(default_factory=LLMPromptTemplates)
     """Prompt templates used by all LLM-assisted flows."""
 
@@ -613,7 +616,7 @@ class ContextSeek:
         from contextseek.retrieval.orchestrator import RetrievalOrchestrator
         from contextseek.retrieval.components import LLMReranker
 
-        reranker = None
+        reranker = self.reranker
         if self._llm_rerank_enabled and self.llm is not None:
             reranker = LLMReranker(
                 score_fn=self._score_relevance_with_llm,
@@ -2414,6 +2417,7 @@ class ContextSeek:
         from contextseek.config.factory import (
             build_embedder,
             build_llm,
+            build_reranker,
             build_summarizer,
         )
 
@@ -2490,6 +2494,7 @@ class ContextSeek:
             llm=shared_llm,
             prompt_templates=llm_prompts,
         )
+        reranker = build_reranker(settings.retrieval)
 
         llm_rerank_enabled = (
             shared_llm is not None and settings.retrieval.reranker_mode.lower() == "llm"
@@ -2562,6 +2567,7 @@ class ContextSeek:
             embedder=embedder,
             summarizer=summarizer,
             llm=shared_llm,
+            reranker=reranker,
             llm_prompts=llm_prompts,
             evolution_engine=evolution_engine,
             audit_log=audit_log,

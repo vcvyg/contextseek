@@ -13,6 +13,7 @@ from typing import Any, Callable
 from contextseek.config.settings import (
     EmbeddingSettings,
     LLMSettings,
+    RetrievalSettings,
     SummarizerSettings,
 )
 
@@ -217,9 +218,33 @@ def build_summarizer(
     return None
 
 
+def build_reranker(settings: RetrievalSettings) -> Any | None:
+    """Build the configured non-LLM reranker.
+
+    ``None`` preserves the existing heuristic and LLM assembly paths.  The
+    cross-encoder model itself is loaded lazily on the first retrieval.
+    """
+    mode = settings.reranker_mode.strip().lower().replace("-", "_")
+    if mode in {"heuristic", "llm"}:
+        return None
+    if mode == "cross_encoder":
+        from contextseek.retrieval.components import CrossEncoderReranker
+
+        return CrossEncoderReranker(
+            settings.cross_encoder_model,
+            device=settings.cross_encoder_device or None,
+            top_n=max(1, int(settings.cross_encoder_top_n)),
+        )
+    raise ValueError(
+        f"Unknown reranker mode '{settings.reranker_mode}'. "
+        "Supported modes: heuristic, llm, cross_encoder."
+    )
+
+
 __all__ = [
     "build_embedder",
     "build_llm",
+    "build_reranker",
     "build_summarizer",
     "resolve_embedding_dims",
 ]

@@ -18,7 +18,12 @@ from contextseek.config.settings import PromptSettings
 from contextseek.config.settings import nested_section_config
 from contextseek.config.settings import settings_config
 from contextseek.config.settings import to_strategy_config
-from contextseek.config.factory import build_embedder, build_llm, build_summarizer
+from contextseek.config.factory import (
+    build_embedder,
+    build_llm,
+    build_reranker,
+    build_summarizer,
+)
 
 __all__ = [
     "EvolutionStrategy",
@@ -36,6 +41,7 @@ __all__ = [
     "WriteStrategy",
     "build_embedder",
     "build_llm",
+    "build_reranker",
     "build_summarizer",
     "default_strategy_config",
     "HYBRID_RETRIEVAL_STRATEGY",

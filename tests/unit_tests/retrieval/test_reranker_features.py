@@ -4,13 +4,73 @@ feedback / overlap / quality features actually move the ranking."""
 from __future__ import annotations
 
 from contextseek.config.strategies import RetrievalStrategy
-from contextseek.retrieval.components import HeuristicReranker
+from contextseek.retrieval.components import CrossEncoderReranker, HeuristicReranker
 
 
 def _candidate(**kwargs) -> dict:
     base = {"content": "doc", "score": 0.9}
     base.update(kwargs)
     return base
+
+
+class StubCrossEncoder:
+    def __init__(self, scores: list[float]) -> None:
+        self.scores = scores
+        self.pairs: list[tuple[str, str]] = []
+
+    def predict(self, pairs: list[tuple[str, str]]) -> list[float]:
+        self.pairs = pairs
+        return self.scores
+
+
+class TestCrossEncoderReranker:
+    def test_batch_scores_and_reorders_candidates(self) -> None:
+        model = StubCrossEncoder([0.1, 0.9])
+        reranker = CrossEncoderReranker("stub", model=model)
+        candidates = [
+            _candidate(id="first", content="alpha", score=0.9, stage="skill"),
+            _candidate(id="second", content="beta", score=0.8, stage="skill"),
+        ]
+
+        ranked = reranker.rerank(
+            candidates, query="question", strategy=RetrievalStrategy()
+        )
+
+        assert [item["id"] for item in ranked] == ["second", "first"]
+        assert model.pairs == [("question", "alpha"), ("question", "beta")]
+
+    def test_top_n_preserves_unscored_remainder(self) -> None:
+        model = StubCrossEncoder([0.2, 0.8])
+        reranker = CrossEncoderReranker("stub", model=model, top_n=2)
+        candidates = [
+            _candidate(id="a", score=0.9, stage="skill"),
+            _candidate(id="b", score=0.8, stage="skill"),
+            _candidate(id="c", score=0.7, stage="skill"),
+        ]
+
+        ranked = reranker.rerank(
+            candidates, query="q", strategy=RetrievalStrategy()
+        )
+
+        assert [item["id"] for item in ranked] == ["b", "a", "c"]
+        assert len(model.pairs) == 2
+
+    def test_prediction_failure_falls_back_to_inner_order(self) -> None:
+        class FailingModel:
+            def predict(self, pairs):
+                raise RuntimeError("offline")
+
+        reranker = CrossEncoderReranker("stub", model=FailingModel())
+        candidates = [
+            _candidate(id="low", score=0.2, stage="skill"),
+            _candidate(id="high", score=0.8, stage="skill"),
+        ]
+
+        ranked = reranker.rerank(
+            candidates, query="q", strategy=RetrievalStrategy()
+        )
+
+        assert [item["id"] for item in ranked] == ["high", "low"]
 
 
 class TestFeedbackChannel:

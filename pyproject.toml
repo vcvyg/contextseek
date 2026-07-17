@@ -50,11 +50,13 @@ oceanbase = ["pyobvector>=0.1.0", "sqlalchemy>=2.0"]
 daemon = ["watchdog>=4.0"]
 seekdb = ["pyseekdb"]
 powermem = ["powermem>=1.1.1"]
+rerank = ["sentence-transformers>=3.0.0"]
 all = [
     "fastapi>=0.110.0", "uvicorn>=0.30.0", "pydantic>=2.7.0", "cryptography>=42.0.0",
     "langchain-core>=0.3.0", "langchain>=0.3.0", "langgraph>=0.2.0",
     "langchain-openai>=0.3.0",
     "langchain-community>=0.3.0", "dashscope>=1.20.0",
+    "sentence-transformers>=3.0.0",
     "watchdog>=4.0",
     "pyseekdb",
 ]

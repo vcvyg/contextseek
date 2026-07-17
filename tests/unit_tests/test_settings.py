@@ -20,6 +20,7 @@ from contextseek.config.factory import (
     _import_class,
     build_embedder,
     build_llm,
+    build_reranker,
     resolve_embedding_dims,
 )
 
@@ -219,6 +220,32 @@ class TestFactory:
         """Provider 'none' returns None without any imports."""
         result = build_embedder(EmbeddingSettings())
         assert result is None
+
+    def test_build_cross_encoder_reranker_lazily(self):
+        """Cross-encoder config builds without importing the optional package."""
+        from contextseek.retrieval.components import CrossEncoderReranker
+
+        reranker = build_reranker(
+            RetrievalSettings(
+                reranker_mode="cross_encoder",
+                cross_encoder_model="example/reranker",
+                cross_encoder_device="cpu",
+                cross_encoder_top_n=7,
+            )
+        )
+
+        assert isinstance(reranker, CrossEncoderReranker)
+        assert reranker._model_name == "example/reranker"
+        assert reranker._device == "cpu"
+        assert reranker._top_n == 7
+
+    def test_build_reranker_rejects_unknown_mode(self):
+        with pytest.raises(ValueError, match="Supported modes"):
+            build_reranker(RetrievalSettings(reranker_mode="unknown"))
+
+    @pytest.mark.parametrize("mode", ["heuristic", "llm"])
+    def test_build_reranker_preserves_existing_modes(self, mode):
+        assert build_reranker(RetrievalSettings(reranker_mode=mode)) is None
 
     def test_build_embedder_no_class_path(self):
         """Provider set but empty class_path returns None."""
@@ -458,6 +485,20 @@ class TestFromSettings:
         ctx.add("file backend test", scope="t/p/u", source="test")
         response = ctx.retrieve("file", scope="t/p/u")
         assert len(response) >= 1
+
+    def test_from_settings_selects_cross_encoder_reranker(self):
+        """Reranker implementation is swappable through retrieval settings."""
+        from contextseek import ContextSeek
+        from contextseek.retrieval.components import CrossEncoderReranker
+
+        settings = ContextSeekSettings(
+            storage=StorageSettings(backend="memory"),
+            retrieval=RetrievalSettings(reranker_mode="cross_encoder"),
+        )
+
+        ctx = ContextSeek.from_settings(settings)
+
+        assert isinstance(ctx.reranker, CrossEncoderReranker)
 
     def test_from_settings_with_evolution(self):
         """from_settings() enables evolution engine when configured."""

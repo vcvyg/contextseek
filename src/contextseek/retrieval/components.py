@@ -750,6 +750,77 @@ class LLMReranker:
         return scored + remainder
 
 
+class CrossEncoderReranker:
+    """Batch-rerank candidates with a sentence-transformers cross-encoder.
+
+    Model loading is lazy so the default heuristic and LLM paths do not import
+    the optional ``sentence-transformers`` dependency.  Tests and custom
+    integrations may inject any object exposing ``predict(pairs)``.
+    """
+
+    def __init__(
+        self,
+        model_name: str,
+        *,
+        device: str | None = None,
+        inner: Reranker | None = None,
+        top_n: int | None = None,
+        model: Any | None = None,
+    ) -> None:
+        self._model_name = model_name
+        self._device = device
+        self._inner = inner or HeuristicReranker()
+        self._top_n = top_n
+        self._model = model
+
+    def _get_model(self) -> Any:
+        if self._model is None:
+            try:
+                from sentence_transformers import CrossEncoder
+            except ImportError as exc:
+                raise RuntimeError(
+                    "Cross-encoder reranking requires the optional dependency; "
+                    "install it with `pip install 'contextseek[rerank]'`."
+                ) from exc
+            kwargs = {"device": self._device} if self._device else {}
+            self._model = CrossEncoder(self._model_name, **kwargs)
+        return self._model
+
+    def rerank(
+        self,
+        candidates: list[dict[str, object]],
+        *,
+        query: str,
+        strategy: RetrievalStrategy,
+        geo_query: Any | None = None,
+    ) -> list[dict[str, object]]:
+        pre_ranked = self._inner.rerank(
+            candidates, query=query, strategy=strategy, geo_query=geo_query
+        )
+        to_score = pre_ranked[: self._top_n] if self._top_n else pre_ranked
+        remainder = pre_ranked[self._top_n :] if self._top_n else []
+        if not to_score:
+            return pre_ranked
+
+        pairs = [(query, str(item.get("content", ""))) for item in to_score]
+        model = self._get_model()
+        try:
+            scores = list(model.predict(pairs))
+            if len(scores) != len(to_score):
+                raise ValueError("cross-encoder returned an unexpected score count")
+            for item, score in zip(to_score, scores):
+                item["_score"] = round(float(score), 6)
+        except Exception:  # noqa: BLE001
+            return pre_ranked
+
+        scored = sorted(
+            to_score,
+            key=lambda item: float(item.get("_score", 0.0)),
+            reverse=True,
+        )
+        return scored + remainder
+
+
 class RelationAwareReranker:
     """Reranker that applies relation-based boosts and penalties.
 

@@ -292,6 +292,9 @@ class RetrievalSettings(BaseSettings):
     )
     reranker_mode: str = "heuristic"
     llm_rerank_top_n: int = 20
+    cross_encoder_model: str = "cross-encoder/ms-marco-MiniLM-L-6-v2"
+    cross_encoder_device: str = ""
+    cross_encoder_top_n: int = 20
     hierarchical_alpha: float = 0.5
     hierarchical_max_rounds: int = 24
     hierarchical_convergence_rounds: int = 3
