@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import os
 import shutil
 from pathlib import Path
 
@@ -75,6 +76,30 @@ def test_obsidian_sync_is_incremental_and_materializes_wikilinks(
     assert writes == []
 
     alpha_path = vault / "Projects" / "Alpha.md"
+    original = alpha_path.read_text(encoding="utf-8")
+    original_stat = alpha_path.stat()
+    same_size_edit = original.replace("active", "edited")
+    assert len(same_size_edit) == len(original)
+    alpha_path.write_text(same_size_edit, encoding="utf-8")
+    os.utime(
+        alpha_path,
+        ns=(original_stat.st_atime_ns, original_stat.st_mtime_ns),
+    )
+    same_metadata = sync_path(ctx, vault, scope=SCOPE)
+
+    assert (
+        same_metadata.added,
+        same_metadata.updated,
+        same_metadata.deleted,
+        same_metadata.skipped,
+    ) == (0, 1, 0, 1)
+    assert len(writes) == 1
+    same_metadata_alpha = {
+        item.provenance.source_id: item for item in ctx.items(scope=SCOPE)
+    }["obsidian://Projects/Alpha.md"]
+    assert "edited delivery project" in same_metadata_alpha.content_text
+
+    writes.clear()
     alpha_path.write_text(
         alpha_path.read_text(encoding="utf-8") + "\nOnly this note changed.\n",
         encoding="utf-8",

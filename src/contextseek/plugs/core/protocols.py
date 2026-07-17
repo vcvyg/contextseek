@@ -66,7 +66,11 @@ class RawEvent:
     """Optional tags to attach to the resulting ContextItem."""
 
     metadata: dict = field(default_factory=dict)
-    """Extra key-value pairs the plug can supply (passed to provenance context)."""
+    """Optional materialization hints supplied by the plug.
+
+    ContextSeek recognizes ``scope``, ``stage``, ``stability``, ``embedding``,
+    ``importance``, and ``summary``. Other keys are not persisted automatically.
+    """
 
     operation: PlugOperation = "add"
     """Requested materialization operation for incremental plugs."""

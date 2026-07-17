@@ -80,15 +80,6 @@ class ObsidianVaultPlug:
         for rel, path in markdown_files.items():
             stat = path.stat()
             old = old_files.get(rel)
-            if (
-                old is not None
-                and int(old.get("mtime_ns", -1)) == stat.st_mtime_ns
-                and int(old.get("size", -1)) == stat.st_size
-            ):
-                next_files[rel] = dict(old)
-                skipped += 1
-                continue
-
             raw = path.read_text(encoding="utf-8", errors="replace")
             digest = hashlib.sha256(raw.encode("utf-8")).hexdigest()
             record = {
