@@ -48,9 +48,7 @@ class TestCrossEncoderReranker:
             _candidate(id="c", score=0.7, stage="skill"),
         ]
 
-        ranked = reranker.rerank(
-            candidates, query="q", strategy=RetrievalStrategy()
-        )
+        ranked = reranker.rerank(candidates, query="q", strategy=RetrievalStrategy())
 
         assert [item["id"] for item in ranked] == ["b", "a", "c"]
         assert len(model.pairs) == 2
@@ -66,9 +64,7 @@ class TestCrossEncoderReranker:
             _candidate(id="high", score=0.8, stage="skill"),
         ]
 
-        ranked = reranker.rerank(
-            candidates, query="q", strategy=RetrievalStrategy()
-        )
+        ranked = reranker.rerank(candidates, query="q", strategy=RetrievalStrategy())
 
         assert [item["id"] for item in ranked] == ["high", "low"]
 
