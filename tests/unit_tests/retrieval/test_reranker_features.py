@@ -68,6 +68,25 @@ class TestCrossEncoderReranker:
 
         assert [item["id"] for item in ranked] == ["high", "low"]
 
+    def test_invalid_score_does_not_partially_overwrite_inner_scores(self) -> None:
+        model = StubCrossEncoder([0.95, None])  # type: ignore[list-item]
+        reranker = CrossEncoderReranker("stub", model=model)
+        candidates = [
+            _candidate(id="low", score=0.2, stage="skill"),
+            _candidate(id="high", score=0.8, stage="skill"),
+        ]
+        strategy = RetrievalStrategy()
+        expected = HeuristicReranker().rerank(
+            [dict(item) for item in candidates], query="q", strategy=strategy
+        )
+
+        ranked = reranker.rerank(candidates, query="q", strategy=strategy)
+
+        assert [item["id"] for item in ranked] == ["high", "low"]
+        assert [item["_score"] for item in ranked] == [
+            item["_score"] for item in expected
+        ]
+
 
 class TestFeedbackChannel:
     def test_feedback_zero_does_not_bias(self) -> None:

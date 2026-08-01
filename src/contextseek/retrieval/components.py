@@ -808,10 +808,12 @@ class CrossEncoderReranker:
             scores = list(model.predict(pairs))
             if len(scores) != len(to_score):
                 raise ValueError("cross-encoder returned an unexpected score count")
-            for item, score in zip(to_score, scores):
-                item["_score"] = round(float(score), 6)
+            converted_scores = [round(float(score), 6) for score in scores]
         except Exception:  # noqa: BLE001
             return pre_ranked
+
+        for item, score in zip(to_score, converted_scores):
+            item["_score"] = score
 
         scored = sorted(
             to_score,

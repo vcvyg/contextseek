@@ -65,7 +65,8 @@ class RetrievalStrategy:
     importance_floor: float = 0.1
     # Geo decay: distance decay unit in km for reranker spatial penalty
     distance_decay_km: float = 1.0
-    # Rerank mode: "heuristic" (default), "llm", or "cross_encoder"
+    # Informational mirror of the configured reranker mode. The orchestrator
+    # selects an injected Reranker instance rather than switching on this field.
     reranker_mode: str = "heuristic"
     # Limit number of candidates scored by LLM in reranking
     llm_rerank_top_n: int = 20
