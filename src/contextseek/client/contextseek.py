@@ -567,6 +567,7 @@ class ContextSeek:
             action = "plug_update"
             item.created_at = existing.created_at
             item.updated_at = datetime.now(timezone.utc)
+            item.importance = existing.importance
             item.relevance_boost = existing.relevance_boost
             item.access_count = existing.access_count
             item.lineage_access_count = existing.lineage_access_count

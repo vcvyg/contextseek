@@ -58,6 +58,8 @@ def test_obsidian_sync_is_incremental_and_materializes_wikilinks(
             if link.target_id == alpha.id and link.relation is LinkType.related_to
         )
     ]
+    alpha.importance = 0.35
+    ctx._write_item(alpha)  # noqa: SLF001
 
     original_write = ctx.adapter.write
     writes: list[str] = []
@@ -100,6 +102,7 @@ def test_obsidian_sync_is_incremental_and_materializes_wikilinks(
         item.provenance.source_id: item for item in ctx.items(scope=SCOPE)
     }["obsidian://Projects/Alpha.md"]
     assert "edited delivery project" in same_metadata_alpha.content_text
+    assert same_metadata_alpha.importance == 0.35
 
     writes.clear()
     alpha_path.write_text(
