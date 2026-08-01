@@ -11,6 +11,8 @@ from seekvfs import VFS
 from contextseek.client.contextseek import ContextSeek
 from contextseek.daemon.sync_cmd import sync_path
 from contextseek.domain.links import LinkType
+from contextseek.plugs.obsidian import ObsidianVaultPlug
+from contextseek.plugs.obsidian import plug as obsidian_plug_module
 from contextseek.storage.sqlite_backend import SQLiteBackend
 from contextseek.storage.storage_adapter import SeekVFSStorageAdapter
 
@@ -147,3 +149,45 @@ def test_obsidian_cursor_is_isolated_by_destination_scope(tmp_path: Path) -> Non
     assert len(ctx.items(scope="tests/obsidian/first")) == 2
     assert len(ctx.items(scope="tests/obsidian/second")) == 2
     backend.close()
+
+
+def test_obsidian_sync_ignores_hidden_and_symlinked_markdown(tmp_path: Path) -> None:
+    vault = _copy_vault(tmp_path)
+    (vault / ".secrets.md").write_text("private", encoding="utf-8")
+    outside = tmp_path / "outside.md"
+    outside.write_text("outside the vault", encoding="utf-8")
+    symlink = vault / "outside-link.md"
+    try:
+        symlink.symlink_to(outside)
+    except (NotImplementedError, OSError):
+        pass
+
+    ctx, backend = _contextseek(tmp_path)
+    report = sync_path(ctx, vault, scope=SCOPE)
+
+    assert report.added == 2
+    sources = {item.provenance.source_id for item in ctx.items(scope=SCOPE)}
+    assert "obsidian://.secrets.md" not in sources
+    assert "obsidian://outside-link.md" not in sources
+    backend.close()
+
+
+def test_obsidian_stream_builds_changed_events_lazily(
+    tmp_path: Path,
+    monkeypatch,
+) -> None:
+    vault = _copy_vault(tmp_path)
+    indexed: list[str] = []
+    original = obsidian_plug_module._indexable_markdown
+
+    def track_indexing(raw: str) -> str:
+        indexed.append(raw)
+        return original(raw)
+
+    monkeypatch.setattr(obsidian_plug_module, "_indexable_markdown", track_indexing)
+    events = ObsidianVaultPlug(vault, persist_state=False).stream()
+
+    next(events)
+    assert len(indexed) == 1
+    list(events)
+    assert len(indexed) == 2

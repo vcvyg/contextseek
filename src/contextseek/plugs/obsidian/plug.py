@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import hashlib
 import json
+import os
 import re
 from dataclasses import dataclass, field
 from pathlib import Path, PurePosixPath
@@ -73,9 +74,17 @@ class ObsidianVaultPlug:
         }
         lookup = _NoteLookup(item_ids)
 
-        events: list[RawEvent] = []
         next_files: dict[str, dict[str, Any]] = {}
-        skipped = 0
+        deleted_files = [
+            (rel, str(old_files[rel]["item_id"]))
+            for rel in sorted(set(old_files) - set(markdown_files))
+            if old_files[rel].get("item_id")
+        ]
+        self.stats = ObsidianSyncStats()
+        total = len(markdown_files) + len(deleted_files)
+
+        if total == 0 and self.on_progress is not None:
+            self.on_progress(0, 0, 0)
 
         for rel, path in markdown_files.items():
             stat = path.stat()
@@ -90,48 +99,40 @@ class ObsidianVaultPlug:
             }
             next_files[rel] = record
             if old is not None and old.get("content_hash") == digest:
-                skipped += 1
+                self.stats.skipped += 1
+                if self.on_progress is not None:
+                    self.on_progress(
+                        self.stats.changed,
+                        self.stats.skipped,
+                        total,
+                    )
                 continue
 
             operation = "update" if old is not None else "add"
-            events.append(
-                RawEvent(
-                    content=_indexable_markdown(raw),
-                    source=f"obsidian://{rel}",
-                    tags=["obsidian", "markdown"],
-                    metadata={"vault": str(vault), "path": rel},
-                    operation=operation,
-                    item_id=item_ids[rel],
-                    links=_wikilinks(raw, source=rel, lookup=lookup),
-                )
+            yield RawEvent(
+                content=_indexable_markdown(raw),
+                source=f"obsidian://{rel}",
+                tags=["obsidian", "markdown"],
+                metadata={"vault": str(vault), "path": rel},
+                operation=operation,
+                item_id=item_ids[rel],
+                links=_wikilinks(raw, source=rel, lookup=lookup),
             )
-
-        for rel in sorted(set(old_files) - set(markdown_files)):
-            old = old_files[rel]
-            item_id = old.get("item_id")
-            if not item_id:
-                continue
-            events.append(
-                RawEvent(
-                    content="",
-                    source=f"obsidian://{rel}",
-                    operation="delete",
-                    item_id=str(item_id),
-                )
-            )
-
-        self.stats = ObsidianSyncStats(skipped=skipped)
-        total = len(events) + skipped
-        if not events and self.on_progress is not None:
-            self.on_progress(0, skipped, total)
-        for event in events:
-            yield event
-            if event.operation == "add":
+            if operation == "add":
                 self.stats.added += 1
-            elif event.operation == "update":
+            else:
                 self.stats.updated += 1
-            elif event.operation == "delete":
-                self.stats.deleted += 1
+            if self.on_progress is not None:
+                self.on_progress(self.stats.changed, self.stats.skipped, total)
+
+        for rel, item_id in deleted_files:
+            yield RawEvent(
+                content="",
+                source=f"obsidian://{rel}",
+                operation="delete",
+                item_id=item_id,
+            )
+            self.stats.deleted += 1
             if self.on_progress is not None:
                 self.on_progress(self.stats.changed, self.stats.skipped, total)
 
@@ -226,13 +227,20 @@ def _valid_sync_records(value: Any) -> dict[str, dict[str, Any]]:
 
 def _markdown_files(vault: Path) -> dict[str, Path]:
     files: dict[str, Path] = {}
-    for path in vault.rglob("*"):
-        if not path.is_file() or path.suffix.casefold() != ".md":
-            continue
-        rel_path = path.relative_to(vault)
-        if any(part.startswith(".") for part in rel_path.parts[:-1]):
-            continue
-        files[rel_path.as_posix()] = path
+    for root, dirnames, filenames in os.walk(vault, topdown=True, followlinks=False):
+        root_path = Path(root)
+        dirnames[:] = [
+            name
+            for name in sorted(dirnames)
+            if not name.startswith(".") and not (root_path / name).is_symlink()
+        ]
+        for filename in sorted(filenames):
+            if filename.startswith(".") or not filename.casefold().endswith(".md"):
+                continue
+            path = root_path / filename
+            if path.is_symlink() or not path.is_file():
+                continue
+            files[path.relative_to(vault).as_posix()] = path
     return dict(sorted(files.items()))
 
 
